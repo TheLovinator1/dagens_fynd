@@ -70,6 +70,13 @@ def save_to_json(data: dict) -> None:
     Args:
         data (dict): The data to save.
     """
+    # Loop through the data and remove double spaces
+    # For example, "1 190  kr" becomes "1 190 kr"
+    for url, deal in data.items():
+        for key, value in deal.items():
+            if isinstance(value, str):
+                data[url][key] = value.replace("  ", " ")
+
     # Create the json file if it doesn't exist
     if not Path.exists(Path("dagens_fynd.json")):
         with Path.open(Path("dagens_fynd.json"), "w", encoding="utf-8") as f:
