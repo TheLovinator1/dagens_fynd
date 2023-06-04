@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-from functools import lru_cache
 from pathlib import Path
 
 import requests
@@ -10,34 +9,11 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from loguru import logger
 
+# The URL to the Discord webhook
+discord_webhook_url: str = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
-class Settings:
-    """Settings for the application.
-
-    The settings are loaded from environment variables. If an environment variable is not set, a default value is used.
-    The settings are cached using the lru_cache decorator, so they are only loaded once.
-    """
-
-    # The URL to the daily deals page, should probably not be changed
-    url: str = os.environ.get("URL", "https://www.sweclockers.com/dagensfynd")
-
-    # The URL to the Discord webhook
-    discord_webhook_url: str = os.environ.get("DISCORD_WEBHOOK_URL", "")
-
-    # The URL to the Discord webhook where errors are sent
-    discord_webhook_url_error: str = os.environ.get("DISCORD_WEBHOOK_URL_ERROR", "")
-
-
-@lru_cache
-def get_settings() -> Settings:
-    """Get the settings.
-
-    This function is cached using the lru_cache decorator, so the settings are only loaded once.
-
-    Returns:
-        Settings: The settings.
-    """
-    return Settings()
+# The URL to the Discord webhook where errors are sent
+discord_webhook_url_error: str = os.environ.get("DISCORD_WEBHOOK_URL_ERROR", "")
 
 
 def add_logger() -> None:
