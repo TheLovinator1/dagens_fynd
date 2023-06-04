@@ -100,7 +100,11 @@ def read_from_json() -> dict:
 
     # Read the data from the json file
     with Path.open(Path("dagens_fynd.json"), "r", encoding="utf-8") as f:
-        return json.loads(f.read())
+        try:
+            return json.loads(f.read())
+        except json.decoder.JSONDecodeError as e:
+            logger.error("Could not parse json file, returning empty dict\n", error=e)
+            return {}
 
 
 def main() -> None:
