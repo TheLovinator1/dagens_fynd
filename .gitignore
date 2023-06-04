@@ -124,6 +124,6 @@ dmypy.json
 .pyre/
 
 # Files from dagens_fynd
-dagens_fynd.csv
+dagens_fynd.json
 logs/
 dagens_fynd_cache.sqlite

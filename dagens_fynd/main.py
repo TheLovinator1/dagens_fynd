@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from functools import lru_cache
@@ -40,10 +41,7 @@ def get_settings() -> Settings:
 
 
 def add_logger() -> None:
-    """Add our own logger.
-
-    This function is called in dagens_fynd/main.py.
-    """
+    """Add our own logger."""
     log_format: str = "<green>{time:YYYY-MM-DD at HH:mm:ss}</green> <level>{level: <5}</level> <white>{message}</white>"
 
     # Log to file
@@ -66,24 +64,36 @@ def add_logger() -> None:
     )
 
 
-def save_deal(url: str, name: str, category: str, vendor: str, price: str) -> None:
-    """Save the deal to a csv file.
+def save_to_json(data: dict) -> None:
+    """Save the data to a json file.
 
     Args:
-        url (str): The URL to the deal.
-        name (str): The name of the deal.
-        category (str): The category of the deal.
-        vendor (str): The vendor of the deal.
-        price (str): The price of the deal.
+        data (dict): The data to save.
     """
-    # Create the csv file if it doesn't exist
-    if not Path.exists(Path("dagens_fynd.csv")):
-        with Path.open(Path("dagens_fynd.csv"), "w", encoding="utf-8") as f:
-            f.write("URL,Name,Category,Vendor,Price\n")
+    # Create the json file if it doesn't exist
+    if not Path.exists(Path("dagens_fynd.json")):
+        with Path.open(Path("dagens_fynd.json"), "w", encoding="utf-8") as f:
+            f.write("{}")
 
-    # Save the deal to the csv file
-    with Path.open(Path("dagens_fynd.csv"), "a", encoding="utf-8") as f:
-        f.write(f"{url},{name},{category},{vendor},{price}\n")
+    # Save the data to the json file
+    with Path.open(Path("dagens_fynd.json"), "w", encoding="utf-8") as f:
+        f.write(json.dumps(data, indent=4, ensure_ascii=False))
+
+
+def read_from_json() -> dict:
+    """Read the data from the json file.
+
+    Returns:
+        dict: The data.
+    """
+    # Create the json file if it doesn't exist
+    if not Path.exists(Path("dagens_fynd.json")):
+        with Path.open(Path("dagens_fynd.json"), "w", encoding="utf-8") as f:
+            f.write("{}")
+
+    # Read the data from the json file
+    with Path.open(Path("dagens_fynd.json"), "r", encoding="utf-8") as f:
+        return json.loads(f.read())
 
 
 def main() -> None:
@@ -120,16 +130,20 @@ def main() -> None:
         logger.info(f"Deal found:\nName: {name}\nCategory: {category}\nVendor: {vendor}\nPrice: {price}\nURL: {url}\n")
 
         # Check if the deal is already saved
-        try:
-            with Path.open("dagens_fynd.csv", "r", encoding="utf-8") as f:
-                if f"{url},{name},{category},{vendor},{price}" in f.read():
-                    logger.info("Deal already saved, skipping")
-                    continue
-        except FileNotFoundError:
-            logger.debug("No csv file found")
+        data: dict = read_from_json()
+        if url in data:
+            logger.info("Deal already saved, skipping\n")
+            continue
 
-        # Save the deal
-        save_deal(url, name, category, vendor, price)
+        # Save the deal to a json file
+        data: dict = read_from_json()
+        data[url] = {
+            "name": name,
+            "category": category,
+            "vendor": vendor,
+            "price": price,
+        }
+        save_to_json(data)
 
 
 if __name__ == "__main__":
