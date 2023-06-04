@@ -42,7 +42,10 @@ def get_settings() -> Settings:
 
 def add_logger() -> None:
     """Add our own logger."""
-    log_format: str = "<green>{time:YYYY-MM-DD at HH:mm:ss}</green> <level>{level: <5}</level> <white>{message}</white>"
+    log_format: str = (
+        "<green>{time:YYYY-MM-DD at HH:mm:ss}</green> <yellow>{extra[name]}</yellow>"
+        " <cyan>{extra[price]}</cyan> <level>{message}</level>"
+    )
 
     # Log to file
     logger.add(
@@ -103,6 +106,9 @@ def read_from_json() -> dict:
         try:
             return json.loads(f.read())
         except json.decoder.JSONDecodeError as e:
+            if e.pos == 0 and e.lineno == 1 and e.colno == 1:
+                return {}
+
             logger.error("Could not parse json file, returning empty dict\n", error=e)
             return {}
 
@@ -138,13 +144,27 @@ def main() -> None:
         vendor: str = deal.find("div", class_="col-vendor").text or "Unknown"  # type: ignore  # noqa: PGH003
         price: str = deal.find("div", class_="col-price").text or "Unknown"  # type: ignore  # noqa: PGH003
 
-        logger.info(f"Deal found:\nName: {name}\nCategory: {category}\nVendor: {vendor}\nPrice: {price}\nURL: {url}\n")
-
         # Check if the deal is already saved
         data: dict = read_from_json()
         if url in data:
-            logger.info("Deal already saved, skipping\n")
+            logger.info(
+                "Deal already in json file, skipping",
+                url=url,
+                name=name,
+                category=category,
+                vendor=vendor,
+                price=price,
+            )
             continue
+
+        logger.info(
+            f"Deal found! {name} for {price}",
+            url=url,
+            name=name,
+            category=category,
+            vendor=vendor,
+            price=price,
+        )
 
         # Save the deal to a json file
         data: dict = read_from_json()
