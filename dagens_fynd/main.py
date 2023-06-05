@@ -1,8 +1,12 @@
 import json
 import os
 import sys
+import uuid
+from datetime import datetime
+from email import utils
 from pathlib import Path
 
+import pytz
 import requests
 import requests_cache
 from bs4 import BeautifulSoup
@@ -89,6 +93,68 @@ def read_from_json() -> dict:
             return {}
 
 
+def create_rss_feed() -> str:
+    """Create a RSS feed.
+
+    Returns:
+        str: The RSS feed.
+    """
+    rss_feed = f"""<?xml version="1.0" encoding="UTF-8"?>
+    <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+        <channel>
+            <title>SweClockers - Dagens fynd</title>
+            <link>https://www.sweclockers.com/dagensfynd</link>
+            <description>Daily tech deals</description>
+            <pubDate>{datetime.now(tz=pytz.timezone("Europe/Stockholm")).strftime("%a, %d %b %Y %H:%M:%S %z")}</pubDate>
+            <managingEditor>tlovinator@gmail.com (Joakim Hellsén)</managingEditor>
+            <webMaster>tlovinator@gmail.com (Joakim Hellsén)</webMaster>
+            <category>SweClockers</category>
+            <generator>https://github.com/TheLovinator1/dagens_fynd</generator>
+            <docs>https://www.rssboard.org/rss-specification</docs>
+            <ttl>60</ttl>
+            <image>
+                <url>https://www.sweclockers.com/gfx/apple-touch-icon.png</url>
+                <title>SweClockers - Dagens fynd</title>
+                <description>SweClockers logo</description>
+                <link>https://www.sweclockers.com/dagensfynd</link>
+            </image>
+            <atom:link href="https://dagens-fynd.lovinator.space/rss" rel="self" type="application/rss+xml" />
+        """
+
+    # Get the data from our .json file
+    data: dict = read_from_json()
+
+    # Append the deals to the RSS feed
+    for url, deal in data.items():
+        rss_feed += f"""
+        <item>
+            <title>{deal["name"]}</title>
+            <link>{url}</link>
+            <description>{deal["vendor"]}</description>
+            <category>{deal["category"]}</category>
+            <pubDate>{deal["date"]}</pubDate>
+            <guid isPermaLink="false">{deal["guid"]}</guid>
+        </item>"""
+
+    rss_feed += "\n</channel>\n</rss>"
+    return rss_feed
+
+
+def get_guid() -> str:
+    """Get a unique identifier for a deal.
+
+    Returns:
+        str: The unique identifier.
+    """
+    our_uuid = str(uuid.uuid4())
+
+    # Get the data from our .json file
+    data: dict = read_from_json()
+
+    # Rerun the function if our_uuid is already in the data otherwise return our_uuid
+    return get_guid() if our_uuid in data else our_uuid
+
+
 def main() -> None:
     """Get the daily deals from SweClockers and create a RSS feed."""
     try:
@@ -119,6 +185,8 @@ def main() -> None:
         category: str = deal.find("div", class_="col-category").text or "Unknown"  # type: ignore  # noqa: PGH003
         vendor: str = deal.find("div", class_="col-vendor").text or "Unknown"  # type: ignore  # noqa: PGH003
         price: str = deal.find("div", class_="col-price").text or "Unknown"  # type: ignore  # noqa: PGH003
+        date: str = utils.format_datetime(datetime.now(tz=pytz.timezone("Europe/Stockholm")))
+        guid: str = get_guid()
 
         # Check if the deal is already saved
         data: dict = read_from_json()
@@ -130,6 +198,8 @@ def main() -> None:
                 category=category,
                 vendor=vendor,
                 price=price,
+                date=date,
+                guid=guid,
             )
             continue
 
@@ -140,6 +210,8 @@ def main() -> None:
             category=category,
             vendor=vendor,
             price=price,
+            date=date,
+            guid=guid,
         )
 
         # Save the deal to a json file
@@ -149,6 +221,8 @@ def main() -> None:
             "category": category,
             "vendor": vendor,
             "price": price,
+            "date": date,
+            "guid": guid,
         }
         save_to_json(data)
 
@@ -168,3 +242,10 @@ if __name__ == "__main__":
 
     # Start checking for deals
     main()
+
+    # Create the RSS feed
+    rss_feed: str = create_rss_feed()
+
+    # Save the RSS feed to a file
+    with Path.open(Path("dagens_fynd.rss"), "w", encoding="utf-8") as f:
+        f.write(rss_feed)
