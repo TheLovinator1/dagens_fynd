@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "dagens-fynd"
 version = "0.1.0"
-description = ""
+description = "Grabs daily deals from SweClockers and sends it to a Discord webhook or creates a RSS feed."
 authors = ["Joakim Hellsén <tlovinator@gmail.com>"]
 readme = "README.md"
 packages = [{ include = "dagens_fynd" }]
