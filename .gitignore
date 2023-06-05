@@ -127,3 +127,4 @@ dmypy.json
 dagens_fynd.json
 logs/
 dagens_fynd_cache.sqlite
+dagens_fynd.rss
