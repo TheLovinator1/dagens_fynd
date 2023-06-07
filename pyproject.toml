@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "dagens-fynd"
 version = "0.1.0"
-description = "Grabs daily deals from SweClockers and sends it to a Discord webhook or creates a RSS feed."
+description = "Grabs daily deals from SweClockers and sends it to a Discord webhook, also supports creating a RSS feed."
 authors = ["Joakim Hellsén <tlovinator@gmail.com>"]
 readme = "README.md"
 packages = [{ include = "dagens_fynd" }]
@@ -16,9 +16,15 @@ requests-cache = "^1.0.1"
 python-dotenv = "^1.0.0"
 pytz = "^2023.3"
 
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.3.2"
+pytest = "^7.3.1"
+
 [build-system]
-requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+requires = [
+  "poetry-core",
+]
 
 [tool.isort]
 profile = "black"
