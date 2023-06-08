@@ -1,7 +1,4 @@
-import json
 import os
-import sys
-import uuid
 from datetime import datetime
 from email import utils
 from pathlib import Path
@@ -13,146 +10,16 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from loguru import logger
 
+from dagens_fynd.guid import get_guid
+from dagens_fynd.json_stuff import read_from_json, save_to_json
+from dagens_fynd.logging import add_logger
+from dagens_fynd.rss_feed import create_rss_feed
+
 # The URL to the Discord webhook
 discord_webhook_url: str = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
 # The URL to the Discord webhook where errors are sent
 discord_webhook_url_error: str = os.environ.get("DISCORD_WEBHOOK_URL_ERROR", "")
-
-
-def add_logger() -> None:
-    """Add our own logger."""
-    log_format: str = (
-        "<green>{time:YYYY-MM-DD at HH:mm:ss}</green> <yellow>{extra[name]}</yellow>"
-        " <cyan>{extra[price]}</cyan> <level>{message}</level>"
-    )
-
-    # Log to file
-    logger.add(
-        "logs/dagens_fynd.json",
-        level="INFO",
-        rotation="1GB",
-        compression="zip",
-        serialize=True,
-    )
-
-    # Log to stderr
-    logger.add(
-        sys.stderr,
-        format=log_format,
-        level="INFO",
-        colorize=True,
-        backtrace=True,
-        diagnose=True,
-    )
-
-
-def save_to_json(data: dict) -> None:
-    """Save the data to a json file.
-
-    Args:
-        data (dict): The data to save.
-    """
-    # Loop through the data and remove double spaces
-    # For example, "1 190  kr" becomes "1 190 kr"
-    for url, deal in data.items():
-        for key, value in deal.items():
-            if isinstance(value, str):
-                data[url][key] = value.replace("  ", " ")
-
-    # Create the json file if it doesn't exist
-    if not Path.exists(Path("dagens_fynd.json")):
-        with Path.open(Path("dagens_fynd.json"), "w", encoding="utf-8") as f:
-            f.write("{}")
-
-    # Save the data to the json file
-    with Path.open(Path("dagens_fynd.json"), "w", encoding="utf-8") as f:
-        f.write(json.dumps(data, indent=4, ensure_ascii=False))
-
-
-def read_from_json() -> dict:
-    """Read the data from the json file.
-
-    Returns:
-        dict: The data.
-    """
-    # Create the json file if it doesn't exist
-    if not Path.exists(Path("dagens_fynd.json")):
-        with Path.open(Path("dagens_fynd.json"), "w", encoding="utf-8") as f:
-            f.write("{}")
-
-    # Read the data from the json file
-    with Path.open(Path("dagens_fynd.json"), "r", encoding="utf-8") as f:
-        try:
-            return json.loads(f.read())
-        except json.decoder.JSONDecodeError as e:
-            if e.pos == 0 and e.lineno == 1 and e.colno == 1:
-                return {}
-
-            logger.error("Could not parse json file, returning empty dict\n", error=e)
-            return {}
-
-
-def create_rss_feed() -> str:
-    """Create a RSS feed.
-
-    Returns:
-        str: The RSS feed.
-    """
-    rss_feed = f"""<?xml version="1.0" encoding="UTF-8"?>
-    <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-        <channel>
-            <title>SweClockers - Dagens fynd</title>
-            <link>https://www.sweclockers.com/dagensfynd</link>
-            <description>Daily tech deals</description>
-            <pubDate>{datetime.now(tz=pytz.timezone("Europe/Stockholm")).strftime("%a, %d %b %Y %H:%M:%S %z")}</pubDate>
-            <managingEditor>tlovinator@gmail.com (Joakim Hellsén)</managingEditor>
-            <webMaster>tlovinator@gmail.com (Joakim Hellsén)</webMaster>
-            <category>SweClockers</category>
-            <generator>https://github.com/TheLovinator1/dagens_fynd</generator>
-            <docs>https://www.rssboard.org/rss-specification</docs>
-            <ttl>60</ttl>
-            <image>
-                <url>https://www.sweclockers.com/gfx/apple-touch-icon.png</url>
-                <title>SweClockers - Dagens fynd</title>
-                <description>SweClockers logo</description>
-                <link>https://www.sweclockers.com/dagensfynd</link>
-            </image>
-            <atom:link href="https://dagens-fynd.lovinator.space/rss" rel="self" type="application/rss+xml" />
-        """
-
-    # Get the data from our .json file
-    data: dict = read_from_json()
-
-    # Append the deals to the RSS feed
-    for url, deal in data.items():
-        rss_feed += f"""
-        <item>
-            <title>{deal["name"]}</title>
-            <link>{url}</link>
-            <description>{deal["vendor"]}</description>
-            <category>{deal["category"]}</category>
-            <pubDate>{deal["date"]}</pubDate>
-            <guid isPermaLink="false">{deal["guid"]}</guid>
-        </item>"""
-
-    rss_feed += "\n</channel>\n</rss>"
-    return rss_feed
-
-
-def get_guid() -> str:
-    """Get a unique identifier for a deal.
-
-    Returns:
-        str: The unique identifier.
-    """
-    our_uuid = str(uuid.uuid4())
-
-    # Get the data from our .json file
-    data: dict = read_from_json()
-
-    # Rerun the function if our_uuid is already in the data otherwise return our_uuid
-    return get_guid() if our_uuid in data else our_uuid
 
 
 def main() -> None:
@@ -244,7 +111,8 @@ if __name__ == "__main__":
     main()
 
     # Create the RSS feed
-    rss_feed: str = create_rss_feed()
+    data: dict = read_from_json()
+    rss_feed: str = create_rss_feed(data)
 
     # Save the RSS feed to a file
     with Path.open(Path("dagens_fynd.rss"), "w", encoding="utf-8") as f:
