@@ -6,8 +6,8 @@ from loguru import logger
 def add_logger() -> None:
     """Add our own logger."""
     log_format: str = (
-        "<green>{time:YYYY-MM-DD at HH:mm:ss}</green> <yellow>{extra[name]}</yellow>"
-        " <cyan>{extra[price]}</cyan> <level>{message}</level>"
+        "<green>{time:YYYY-MM-DD at HH:mm:ss}</green> <level>{message}</level> <yellow>{extra[name]}</yellow>"
+        " <cyan>{extra[price]}</cyan>"
     )
 
     # Log to file
