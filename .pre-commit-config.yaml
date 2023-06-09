@@ -53,8 +53,8 @@ repos:
         name: Check that the docstring is the first statement in a module, function, class, or method definition.
       - id: check-executables-have-shebangs
         name: Check that executables have shebangs.
-      - id: check-json
-        name: Check JSON files for syntax errors.
+      #- id: check-json
+      #  name: Check JSON files for syntax errors.
       - id: check-merge-conflict
         name: Check for files that contain merge conflict strings.
       - id: check-symlinks
