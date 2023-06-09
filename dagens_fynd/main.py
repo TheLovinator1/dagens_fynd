@@ -1,9 +1,8 @@
-import os
 from datetime import datetime
 from email import utils
 from pathlib import Path
+from xml.sax.saxutils import escape
 
-import pytz
 import requests
 import requests_cache
 from bs4 import BeautifulSoup
@@ -15,24 +14,7 @@ from dagens_fynd.guid import get_guid
 from dagens_fynd.json_stuff import read_from_json, save_to_json
 from dagens_fynd.logging import add_logger
 from dagens_fynd.rss_feed import create_rss_feed
-
-# The URL to the Discord webhook
-discord_webhook_url: str = os.environ.get("DISCORD_WEBHOOK_URL", "")
-if discord_webhook_url == "https://discordapp.com/api/webhooks/123456789/abcdefghijklmnopqrstuvwxyz":
-    discord_webhook_url = ""
-
-# The URL to the Discord webhook where errors are sent
-discord_webhook_url_error: str = os.environ.get("DISCORD_WEBHOOK_URL_ERROR", "")
-if discord_webhook_url_error == "https://discordapp.com/api/webhooks/123456789/abcdefghijklmnopqrstuvwxyz":
-    discord_webhook_url_error = ""
-
-# The timezone to use for dates
-timezone_env: str = os.environ.get("TIMEZONE", "Europe/Stockholm")
-try:
-    timezone = pytz.timezone(timezone_env)
-except pytz.exceptions.UnknownTimeZoneError:
-    logger.critical("Unknown timezone, defaulting to Europe/Stockholm")
-    timezone = pytz.timezone("Europe/Stockholm")
+from dagens_fynd.settings import discord_webhook_url, timezone
 
 
 def main() -> None:
@@ -67,8 +49,15 @@ def main() -> None:
         price: str = deal.find("div", class_="col-price").text or "Unknown"  # type: ignore  # noqa: PGH003
         date: str = utils.format_datetime(datetime.now(tz=timezone))
         guid: str = get_guid()
-        sent_to_discord: bool = False
-        sent_to_discord_date: str = ""
+
+        # Escape the strings so we don't get any errors when parsing the xml
+        url = escape(url.strip())
+        name = escape(name.strip())
+        category = escape(category.strip())
+        vendor = escape(vendor.strip())
+        price = escape(price.strip())
+        date = escape(date.strip())
+        guid = escape(guid.strip())
 
         # Check if the deal is already saved
         data: dict = read_from_json()
@@ -82,8 +71,6 @@ def main() -> None:
                 price=price,
                 date=date,
                 guid=guid,
-                sent_to_discord=sent_to_discord,
-                sent_to_discord_date=sent_to_discord_date,
             )
             continue
 
@@ -96,8 +83,6 @@ def main() -> None:
             price=price,
             date=date,
             guid=guid,
-            sent_to_discord=sent_to_discord,
-            sent_to_discord_date=sent_to_discord_date,
         )
 
         # Save the deal to a json file
@@ -109,8 +94,6 @@ def main() -> None:
             "price": price,
             "date": date,
             "guid": guid,
-            "sent_to_discord": sent_to_discord,
-            "sent_to_discord_date": sent_to_discord_date,
         }
         save_to_json(data)
 
@@ -118,10 +101,10 @@ def main() -> None:
 def send_error(msg: str) -> None:
     """Send an error message to Discord."""
     logger.error(msg)
-    if not discord_webhook_url_error:
+    if not discord_webhook_url:
         return
 
-    webhook = DiscordWebhook(url=discord_webhook_url_error, content=msg)
+    webhook = DiscordWebhook(url=discord_webhook_url, content=msg)
     response: requests.Response = webhook.execute()
     if response.ok:
         logger.info(f"Sent error to Discord: {msg}")
@@ -152,24 +135,3 @@ if __name__ == "__main__":
     # Save the RSS feed to a file
     with Path.open(Path("dagens_fynd.rss"), "w", encoding="utf-8") as f:
         f.write(rss_feed)
-
-    # Loop through the deals and send unsent deals to Discord
-    for url, deal in data.items():
-        if not discord_webhook_url:
-            continue
-
-        if deal["sent_to_discord"] is True:
-            continue
-
-        deal_msg: str = f"New deal: **{deal['name']}** for {deal['price']}\n{url}"
-        webhook = DiscordWebhook(url=discord_webhook_url, content=deal_msg)
-        response: requests.Response = webhook.execute()
-        if response.ok:
-            logger.info("Sent deal to Discord", url=url, name=deal["name"], price=deal["price"], response=response)
-            deal["sent_to_discord"] = True
-            deal["sent_to_discord_date"] = utils.format_datetime(datetime.now(tz=timezone))
-            data[url] = deal
-            save_to_json(data)
-        else:
-            send_error(f"Could not send deal to Discord: {deal_msg}")
-            logger.error("Could not send deal to Discord", url=url, response=response)
